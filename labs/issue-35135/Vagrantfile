@@ -1,0 +1,31 @@
+$COPY_DOCKER_CONFIG = <<-SCRIPT
+echo '#{File.read('./daemon.json')}' > /etc/docker/daemon.json
+systemctl restart docker
+SCRIPT
+
+Vagrant.configure("2") do |config|
+  config.vm.define :test_vm do |test_vm|
+    test_vm.vm.box = "generic/ubuntu2004"
+    # test_vm.vm.box = "generic/ubuntu1604"
+    # test_vm.vm.box_version = "1.2.15"
+    # test_vm.vm.box_version = "1.2.11"
+    test_vm.vm.hostname = "testvm"
+
+    test_vm.vm.provider :libvirt do |libvirt|
+      libvirt.title = "test_vm"
+      libvirt.cpus = 2
+    end
+
+    test_vm.vm.synced_folder "shared/", "/mnt/shared", type: "9p"
+
+    test_vm.vm.network :private_network, :ip => "10.8.4.3"
+
+    test_vm.vm.provision "shell", path: "../install-docker" # , args: "'17.09.0~ce-0~ubuntu'"
+    test_vm.vm.provision "shell", path: "../install-iptables-trace"
+    test_vm.vm.provision "shell", path: "../install-tracepacket"
+    test_vm.vm.provision "shell", inline: $COPY_DOCKER_CONFIG
+    test_vm.vm.provision "shell", inline: <<-SCRIPT
+apt-get install conntrack
+SCRIPT
+  end
+end
