@@ -1,0 +1,36 @@
+#!/bin/bash
+
+set -o nounset
+set -o errexit
+set -o pipefail
+set -o xtrace
+
+DISTRO_NAME=$(awk 'match($0, /^NAME="(.*)"/, a) {print a[1]}' /etc/os-release)
+DISTRO_RELEASE=$(awk 'match($0, /^VERSION_ID="(.*)"/, a) {print a[1]}' /etc/os-release)
+
+PKG_VERSION="${1:-}"
+if [[ "${PKG_VERSION}" != "" ]]; then
+  PKG_VERSION="=${PKG_VERSION}"
+fi
+
+if [[ "${DISTRO_NAME}" != "Ubuntu" ]]; then
+  echo "Error: Only Ubuntu is supported for now." 1>&2
+  exit 1
+fi
+
+mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg --no-tty --yes
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+
+apt-get update
+
+if [[ "${DISTRO_RELEASE}" == "16.04" ]]; then
+  apt-get install -y "docker-ce${PKG_VERSION}"
+else
+  apt-get install -y "docker-ce${PKG_VERSION}" docker-ce-cli containerd.io docker-compose-plugin
+fi
+
+usermod -a -G docker vagrant

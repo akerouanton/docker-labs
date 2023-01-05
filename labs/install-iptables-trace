@@ -1,0 +1,21 @@
+#!/bin/bash
+
+set -o nounset
+set -o errexit
+set -o pipefail
+set -o xtrace
+
+OS_NAME=$(awk 'match($0, /^NAME="(.*)"/, a) {print a[1]}' /etc/os-release )
+
+if [[ "${OS_NAME}" != "Ubuntu" ]]; then
+  echo "Error: Only Ubuntu is supported for now." 1>&2
+  exit 1
+fi
+
+apt-get update
+apt-get install -y python3-pip libnetfilter-log1
+
+pip3 install libnetfilter python-iptables
+
+curl --fail -o /usr/sbin/iptables-trace https://raw.githubusercontent.com/commonism/iptables-trace/master/bin/iptables-trace.py
+chmod +x /usr/sbin/iptables-trace

@@ -1,0 +1,45 @@
+$COPY_DOCKER_CONFIG = <<-SCRIPT
+echo '#{File.read('./daemon.json')}' > /etc/docker/daemon.json
+systemctl restart docker
+SCRIPT
+
+Vagrant.configure("2") do |config|
+  config.vm.define :test_vm1 do |test_vm1|
+    test_vm1.vm.box = "generic/ubuntu2004"
+    test_vm1.vm.hostname = "testvm1"
+
+    test_vm1.vm.provider :libvirt do |libvirt|
+      libvirt.title = "test_vm1"
+      libvirt.cpus = 1
+    end
+
+    test_vm1.vm.network :private_network, :ip => "10.8.4.2"
+
+    test_vm1.vm.provision "shell", path: "../install-docker"
+    test_vm1.vm.provision "shell", inline: $COPY_DOCKER_CONFIG
+    test_vm1.vm.provision "shell", inline: <<-SCRIPT
+apt-get install hping3
+SCRIPT
+  end
+
+  config.vm.define :test_vm2 do |test_vm2|
+    test_vm2.vm.box = "generic/ubuntu2004"
+    test_vm2.vm.hostname = "testvm2"
+
+    test_vm2.vm.provider :libvirt do |libvirt|
+      libvirt.title = "test_vm2"
+      libvirt.cpus = 1
+    end
+
+    test_vm2.vm.synced_folder "shared/", "/mnt/shared", type: "9p"
+
+    test_vm2.vm.network :private_network, :ip => "10.8.4.3"
+
+    test_vm2.vm.provision "shell", path: "../install-docker"
+    test_vm2.vm.provision "shell", path: "../install-iptables-trace"
+    test_vm2.vm.provision "shell", inline: $COPY_DOCKER_CONFIG
+    test_vm2.vm.provision "shell", inline: <<-SCRIPT
+apt-get install conntrack
+SCRIPT
+  end
+end
